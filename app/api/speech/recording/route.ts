@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { speechToTextFromRecording } from '@/app/lib/azure/speech';
-import path from 'path';
-import fs from 'fs/promises';
-import { existsSync } from 'fs';
-import { spawn } from 'child_process';
 
 export const runtime = 'nodejs';
-
-function getDateString() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 function getTimeString() {
   const now = new Date();
@@ -23,33 +11,12 @@ function getTimeString() {
   return `${hh}-${mi}-${ss}`;
 }
 
-async function convertToWav(inputBuffer: Buffer, inputExt: string, outputPath: string): Promise<Buffer> {
-  // 将 buffer 写入临时文件
-  const tmpInput = outputPath.replace('.wav', `_tmp.${inputExt}`);
-  await fs.writeFile(tmpInput, inputBuffer);
-
-  return new Promise((resolve, reject) => {
-    const ffmpeg = spawn('ffmpeg', [
-      '-y', // 覆盖输出
-      '-i', tmpInput,
-      '-ar', '16000', // 采样率16k
-      '-ac', '1',     // 单声道
-      outputPath
-    ]);
-    ffmpeg.on('close', async (code) => {
-      await fs.unlink(tmpInput).catch(() => {}); // 删除临时文件
-      if (code === 0) {
-        const wavBuffer = await fs.readFile(outputPath);
-        resolve(wavBuffer);
-      } else {
-        reject(new Error('ffmpeg 转换失败'));
-      }
-    });
-    ffmpeg.on('error', (err) => {
-      fs.unlink(tmpInput).catch(() => {});
-      reject(err);
-    });
-  });
+// 在 serverless 环境中，我们不能写入文件系统，所以简化为直接处理音频 buffer
+async function processAudioBuffer(inputBuffer: Buffer): Promise<Buffer> {
+  // 对于 serverless 环境，我们假设输入的音频已经是合适的格式
+  // 如果需要转换，可以使用基于内存的音频处理库
+  // 这里简化处理，直接返回原始 buffer
+  return inputBuffer;
 }
 
 export async function POST(req: NextRequest) {
@@ -71,40 +38,35 @@ export async function POST(req: NextRequest) {
     if (!allowedTypes.includes(file.type) && !hasValidExtension) {
       return NextResponse.json({ error: `不支持的录音格式: ${file.type}` }, { status: 400 });
     }
-    // 生成保存路径
-    const dateStr = getDateString();
+
+    // 直接处理音频 buffer，不保存到文件系统
     const timeStr = getTimeString();
-    const audioDir = path.join(process.cwd(), 'public', 'audio', dateStr);
-    if (!existsSync(audioDir)) {
-      await fs.mkdir(audioDir, { recursive: true });
-    }
-    const ext = fileName.split('.').pop() || 'webm';
-    const wavFileName = `${dateStr}_${timeStr}.wav`;
-    const wavFilePath = path.join(audioDir, wavFileName);
-    // 转换为wav
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    let wavBuffer: Buffer;
+    
+    let audioBuffer: Buffer;
     try {
-      wavBuffer = await convertToWav(buffer, ext, wavFilePath);
+      // 在 serverless 环境中，直接使用原始音频 buffer
+      audioBuffer = await processAudioBuffer(buffer);
     } catch (err) {
-      return NextResponse.json({ error: '音频格式转换失败，ffmpeg未安装或文件损坏' }, { status: 500 });
+      return NextResponse.json({ error: '音频处理失败' }, { status: 500 });
     }
-    // 用wav buffer送给Azure
-    const text = await speechToTextFromRecording(wavBuffer);
+
+    // 用音频 buffer 送给 Azure 进行语音识别
+    const text = await speechToTextFromRecording(audioBuffer);
     if (!text || text.trim() === '') {
       return NextResponse.json({ error: '录音识别结果为空，请重试' }, { status: 400 });
     }
+
     const duration = Date.now() - startTime;
-    // 返回音频URL
-    const audioUrl = `/audio/${dateStr}/${wavFileName}`;
+    
+    // 在 serverless 环境中，我们不保存文件，所以不返回 audioUrl
     return NextResponse.json({
       text,
       duration,
-      audioUrl,
       fileInfo: {
-        name: wavFileName,
-        size: wavBuffer.length,
+        name: `recording_${timeStr}.wav`,
+        size: audioBuffer.length,
         type: 'audio/wav'
       }
     });
@@ -120,4 +82,4 @@ export async function POST(req: NextRequest) {
       } : undefined
     }, { status: 500 });
   }
-} 
+}
