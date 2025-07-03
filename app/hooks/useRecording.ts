@@ -30,9 +30,31 @@ export const useRecording = () => {
       
       streamRef.current = stream;
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      // 尝试使用最兼容的音频格式
+      let mimeType = 'audio/wav';
+      let audioType = 'audio/wav';
+      
+      // 检查浏览器支持的格式，优先选择 WAV，然后是 MP4，最后是 WebM
+      if (MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/wav';
+        audioType = 'audio/wav';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+        audioType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+        audioType = 'audio/webm';
+      } else {
+        // 如果都不支持，尝试不指定 mimeType
+        mimeType = '';
+        audioType = 'audio/wav';
+      }
+      
+      console.log('使用音频格式:', mimeType || '默认格式');
+      
+      const mediaRecorder = mimeType 
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       
       const chunks: Blob[] = [];
       
@@ -43,7 +65,7 @@ export const useRecording = () => {
       };
       
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const audioBlob = new Blob(chunks, { type: audioType });
         setState((prev: RecordingState) => ({ 
           ...prev, 
           isRecording: false, 

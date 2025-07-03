@@ -32,19 +32,11 @@ export async function speechToText(buffer: Buffer, language: string = defaultLan
       // 音频格式转换
       let processedBuffer = buffer;
       if (originalFormat && !AudioConverter.isSupportedByAzure(originalFormat)) {
-        console.log('🔄 检测到不支持的音频格式，开始转换...');
-        try {
-          processedBuffer = await AudioConverter.convertToWav(buffer, originalFormat, {
-            sampleRate: 16000,
-            channels: 1,
-            bitDepth: 16
-          });
-          console.log('✅ 音频转换完成，新大小:', processedBuffer.length, 'bytes');
-        } catch (conversionError) {
-          console.error('❌ 音频转换失败:', conversionError);
-          reject(new Error(`音频格式转换失败: ${(conversionError as Error).message}`));
-          return;
-        }
+        console.log('🔄 检测到不支持的音频格式，尝试直接使用原始数据...');
+        // 在 serverless 环境中，我们无法进行音频转换
+        // 直接尝试使用原始音频数据，让 Azure SDK 自己处理
+        console.log('⚠️ 在无服务器环境中跳过音频转换，直接使用原始数据');
+        processedBuffer = buffer;
       } else {
         console.log('✅ 音频格式无需转换');
       }
@@ -285,7 +277,7 @@ export async function textToSpeech(text: string, language: string = defaultLang,
  * 录音专用的语音转文本函数
  * 适用于实时录音的音频数据
  */
-export async function speechToTextFromRecording(buffer: Buffer, language: string = defaultLang): Promise<string> {
+export async function speechToTextFromRecording(buffer: Buffer, language: string = defaultLang, originalFormat?: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     let recognizer: any = null;
     let timeoutId: NodeJS.Timeout | null = null;
@@ -294,6 +286,7 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
       console.log('开始录音语音转文本处理...');
       console.log('录音数据大小:', buffer.length, 'bytes');
       console.log('语言设置:', language);
+      console.log('音频格式:', originalFormat || '未知');
       console.log('Azure配置 - Key长度:', speechKey.length, 'Region:', speechRegion);
 
       // 检查SDK是否正确导入
@@ -301,26 +294,27 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
         throw new Error('Azure Speech SDK 导入失败，关键组件缺失');
       }
 
-      // 录音通常是WebM格式，需要转换为WAV
+      // 根据音频格式决定处理方式
       let processedBuffer = buffer;
       try {
-        console.log('开始音频转换: audio/webm -> WAV');
-        console.log('目标格式: 16000Hz, 1声道, 16bit');
-        
-        processedBuffer = await AudioConverter.convertToWav(buffer, 'audio/webm', {
-          sampleRate: 16000,
-          channels: 1,
-          bitDepth: 16
-        });
-        console.log('录音音频转换完成，新大小:', processedBuffer.length, 'bytes');
-        
-        // 检查转换后的音频数据
-        if (processedBuffer.length === 0) {
-          throw new Error('音频转换后数据为空');
+        if (originalFormat === 'audio/wav' || originalFormat === 'audio/pcm') {
+          console.log('✅ 检测到支持的音频格式，直接使用');
+          processedBuffer = buffer;
+        } else {
+          console.log('⚠️ 检测到不支持的音频格式:', originalFormat);
+          console.log('在无服务器环境中直接尝试使用原始数据');
+          processedBuffer = buffer;
         }
-      } catch (conversionError) {
-        console.error('录音音频转换失败:', conversionError);
-        reject(new Error(`录音音频格式转换失败: ${(conversionError as Error).message}`));
+        
+        // 检查音频数据
+        if (processedBuffer.length === 0) {
+          throw new Error('音频数据为空');
+        }
+        
+        console.log('使用音频数据，大小:', processedBuffer.length, 'bytes');
+      } catch (error) {
+        console.error('音频处理失败:', error);
+        reject(new Error(`音频处理失败: ${(error as Error).message}`));
         return;
       }
 

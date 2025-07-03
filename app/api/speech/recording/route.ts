@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
+    // 获取文件类型信息
+    const fileType = file.type || 'audio/webm';
+    console.log('录音文件类型:', fileType, '文件名:', file.name);
+    
     let audioBuffer: Buffer;
     try {
       // 在 serverless 环境中，直接使用原始音频 buffer
@@ -52,8 +56,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '音频处理失败' }, { status: 500 });
     }
 
-    // 用音频 buffer 送给 Azure 进行语音识别
-    const text = await speechToTextFromRecording(audioBuffer);
+    // 用音频 buffer 送给 Azure 进行语音识别，传入文件类型信息
+    const text = await speechToTextFromRecording(audioBuffer, 'zh-CN', fileType);
     if (!text || text.trim() === '') {
       return NextResponse.json({ error: '录音识别结果为空，请重试' }, { status: 400 });
     }
