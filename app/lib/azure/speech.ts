@@ -297,12 +297,19 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
       // 根据音频格式决定处理方式
       let processedBuffer = buffer;
       try {
+        console.log('🎵 音频格式分析:', originalFormat);
+        console.log('🎵 音频数据大小:', buffer.length, 'bytes');
+        
         if (originalFormat === 'audio/wav' || originalFormat === 'audio/pcm') {
           console.log('✅ 检测到支持的音频格式，直接使用');
           processedBuffer = buffer;
         } else {
           console.log('⚠️ 检测到不支持的音频格式:', originalFormat);
-          console.log('在无服务器环境中直接尝试使用原始数据');
+          console.log('⚠️ Azure Speech SDK 支持格式: audio/wav, audio/pcm, audio/raw');
+          console.log('⚠️ 当前格式可能导致识别失败，建议前端使用 WAV 格式录音');
+          
+          // 在 serverless 环境中，我们只能尝试直接使用原始数据
+          // 这可能会失败，因为 Azure SDK 对格式要求严格
           processedBuffer = buffer;
         }
         
@@ -311,9 +318,14 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
           throw new Error('音频数据为空');
         }
         
-        console.log('使用音频数据，大小:', processedBuffer.length, 'bytes');
+        // 检查音频数据的基本特征
+        if (processedBuffer.length < 100) {
+          console.warn('⚠️ 音频数据太小，可能无法识别');
+        }
+        
+        console.log('🎵 使用音频数据，大小:', processedBuffer.length, 'bytes');
       } catch (error) {
-        console.error('音频处理失败:', error);
+        console.error('❌ 音频处理失败:', error);
         reject(new Error(`音频处理失败: ${(error as Error).message}`));
         return;
       }
@@ -434,6 +446,7 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
         console.log('❌ 录音语音识别被取消:', e.reason);
         if (e.reason === sdk.CancellationReason.Error) {
           console.error('❌ 录音识别错误详情:', e.errorDetails);
+          console.error('❌ 错误代码:', e.errorCode);
         }
         
         if (!isCompleted) {
@@ -444,7 +457,22 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
             console.log('⚠️ 录音部分识别成功，返回已识别文本');
             resolve(finalText.trim());
           } else {
-            reject(e.errorDetails || '录音语音识别被取消');
+            // 根据错误类型提供更具体的错误信息
+            let errorMessage = '录音语音识别失败';
+            
+            if (e.reason === sdk.CancellationReason.Error) {
+              if (e.errorDetails && e.errorDetails.includes('UnsupportedAudioFormat')) {
+                errorMessage = `不支持的音频格式 ${originalFormat || '未知'}。请尝试使用不同的浏览器或设备录音。`;
+              } else if (e.errorDetails && e.errorDetails.includes('AuthenticationFailure')) {
+                errorMessage = 'Azure语音服务认证失败，请检查配置';
+              } else if (e.errorDetails && e.errorDetails.includes('ConnectionFailure')) {
+                errorMessage = '网络连接失败，请检查网络连接';
+              } else {
+                errorMessage = `语音识别失败: ${e.errorDetails || '未知错误'}`;
+              }
+            }
+            
+            reject(errorMessage);
           }
         }
       };

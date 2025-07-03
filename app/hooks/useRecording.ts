@@ -30,27 +30,39 @@ export const useRecording = () => {
       
       streamRef.current = stream;
       
-      // 尝试使用最兼容的音频格式
-      let mimeType = 'audio/wav';
+      // 检查和选择最佳音频格式
+      let mimeType = '';
       let audioType = 'audio/wav';
       
-      // 检查浏览器支持的格式，优先选择 WAV，然后是 MP4，最后是 WebM
-      if (MediaRecorder.isTypeSupported('audio/wav')) {
-        mimeType = 'audio/wav';
-        audioType = 'audio/wav';
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-        audioType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-        mimeType = 'audio/webm';
-        audioType = 'audio/webm';
-      } else {
-        // 如果都不支持，尝试不指定 mimeType
-        mimeType = '';
-        audioType = 'audio/wav';
+      console.log('🎵 检测浏览器支持的音频格式...');
+      
+      // 优先尝试支持的格式列表
+      const formatOptions = [
+        { mime: 'audio/wav', type: 'audio/wav', name: 'WAV' },
+        { mime: 'audio/mp4', type: 'audio/mp4', name: 'MP4' },
+        { mime: 'audio/webm;codecs=pcm', type: 'audio/webm', name: 'WebM PCM' },
+        { mime: 'audio/webm', type: 'audio/webm', name: 'WebM' },
+        { mime: 'audio/ogg;codecs=opus', type: 'audio/ogg', name: 'OGG Opus' }
+      ];
+      
+      let selectedFormat = null;
+      for (const format of formatOptions) {
+        if (MediaRecorder.isTypeSupported(format.mime)) {
+          selectedFormat = format;
+          mimeType = format.mime;
+          audioType = format.type;
+          console.log(`✅ 选择音频格式: ${format.name} (${format.mime})`);
+          break;
+        } else {
+          console.log(`❌ 不支持格式: ${format.name} (${format.mime})`);
+        }
       }
       
-      console.log('使用音频格式:', mimeType || '默认格式');
+      if (!selectedFormat) {
+        console.log('⚠️ 所有预设格式都不支持，使用默认格式');
+        mimeType = '';
+        audioType = 'audio/webm'; // 大多数现代浏览器的默认格式
+      }
       
       const mediaRecorder = mimeType 
         ? new MediaRecorder(stream, { mimeType })
