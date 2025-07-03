@@ -1,0 +1,232 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--modal-bg);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalContent {
+  width: 100%;
+  height: 100%;
+  background: var(--modal-content-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  color: var(--text-primary);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: var(--font-size-xl);
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.modalBody {
+  flex: 1;
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
+.modalFooter {
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid #f5c6cb;
+}
+
+.recordingStatus {
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+}
+
+.recordingIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  color: var(--danger-color);
+  font-weight: 500;
+}
+
+.recordingDot {
+  width: 12px;
+  height: 12px;
+  background: var(--danger-color);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+.processingIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.recordingControls {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.textArea {
+  margin-bottom: var(--spacing-md);
+}
+
+.textArea label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-base);
+}
+
+.textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-base);
+  resize: vertical;
+  min-height: 120px;
+}
+
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  background: var(--primary-color);
+  color: var(--text-light);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btnSecondary {
+  background: var(--secondary-color);
+  color: var(--text-light);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.btnDanger {
+  background: var(--danger-color);
+  color: var(--text-light);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 平板端适配 */
+@media (min-width: 768px) {
+  .modalContent {
+    width: 80vw;
+    height: 80vh;
+    border-radius: var(--border-radius-xl);
+  }
+}
+
+/* 桌面端适配 */
+@media (min-width: 1024px) {
+  .modalContent {
+    width: 600px;
+    height: 500px;
+  }
+} 
