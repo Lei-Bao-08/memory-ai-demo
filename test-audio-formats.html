@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>音频格式支持测试</title>
+</head>
+<body>
+    <h1>浏览器音频格式支持测试</h1>
+    <button onclick="testFormats()">测试支持的格式</button>
+    <div id="results"></div>
+
+    <script>
+        function testFormats() {
+            const formats = [
+                'audio/wav',
+                'audio/mp4',
+                'audio/webm',
+                'audio/webm;codecs=pcm',
+                'audio/ogg;codecs=opus',
+                'audio/mp3',
+                'audio/mpeg'
+            ];
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>MediaRecorder 格式支持测试:</h3>';
+            
+            formats.forEach(format => {
+                const supported = MediaRecorder.isTypeSupported(format);
+                results.innerHTML += `<p>${format}: <strong>${supported ? '✅ 支持' : '❌ 不支持'}</strong></p>`;
+            });
+            
+            // 测试默认格式
+            try {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        const recorder = new MediaRecorder(stream);
+                        results.innerHTML += `<p>默认格式: <strong>${recorder.mimeType}</strong></p>`;
+                        stream.getTracks().forEach(track => track.stop());
+                    })
+                    .catch(err => {
+                        results.innerHTML += `<p>无法获取麦克风权限: ${err.message}</p>`;
+                    });
+            } catch (err) {
+                results.innerHTML += `<p>MediaRecorder 不支持: ${err.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

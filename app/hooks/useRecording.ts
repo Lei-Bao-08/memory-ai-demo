@@ -30,38 +30,32 @@ export const useRecording = () => {
       
       streamRef.current = stream;
       
-      // 检查和选择最佳音频格式
+      // 检查和选择最佳音频格式 - 严格要求WAV格式
       let mimeType = '';
       let audioType = 'audio/wav';
       
       console.log('🎵 检测浏览器支持的音频格式...');
       
-      // 优先尝试支持的格式列表
-      const formatOptions = [
-        { mime: 'audio/wav', type: 'audio/wav', name: 'WAV' },
-        { mime: 'audio/mp4', type: 'audio/mp4', name: 'MP4' },
-        { mime: 'audio/webm;codecs=pcm', type: 'audio/webm', name: 'WebM PCM' },
-        { mime: 'audio/webm', type: 'audio/webm', name: 'WebM' },
-        { mime: 'audio/ogg;codecs=opus', type: 'audio/ogg', name: 'OGG Opus' }
-      ];
-      
-      let selectedFormat = null;
-      for (const format of formatOptions) {
-        if (MediaRecorder.isTypeSupported(format.mime)) {
-          selectedFormat = format;
-          mimeType = format.mime;
-          audioType = format.type;
-          console.log(`✅ 选择音频格式: ${format.name} (${format.mime})`);
-          break;
-        } else {
-          console.log(`❌ 不支持格式: ${format.name} (${format.mime})`);
+      // 严格优先WAV格式，因为Azure Speech SDK限制很严格
+      if (MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/wav';
+        audioType = 'audio/wav';
+        console.log('✅ 选择音频格式: WAV (最佳兼容性)');
+      } else {
+        // 如果不支持WAV，显示错误并停止录音
+        console.error('❌ 浏览器不支持WAV格式录音');
+        setState((prev: RecordingState) => ({ 
+          ...prev, 
+          isRecording: false, 
+          error: '当前浏览器不支持WAV格式录音，请使用Chrome或Edge浏览器' 
+        }));
+        
+        // 停止媒体流
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+          streamRef.current = null;
         }
-      }
-      
-      if (!selectedFormat) {
-        console.log('⚠️ 所有预设格式都不支持，使用默认格式');
-        mimeType = '';
-        audioType = 'audio/webm'; // 大多数现代浏览器的默认格式
+        return;
       }
       
       const mediaRecorder = mimeType 

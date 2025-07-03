@@ -48,6 +48,20 @@ export async function POST(req: NextRequest) {
     const fileType = file.type || 'audio/webm';
     console.log('录音文件类型:', fileType, '文件名:', file.name);
     
+    // 检查音频格式兼容性
+    const azureSupportedFormats = ['audio/wav', 'audio/pcm', 'audio/raw'];
+    if (!azureSupportedFormats.includes(fileType)) {
+      console.warn('⚠️ 不兼容的音频格式:', fileType);
+      console.warn('⚠️ Azure Speech SDK 仅支持:', azureSupportedFormats.join(', '));
+      
+      return NextResponse.json({ 
+        error: `当前音频格式 ${fileType} 不被支持。请使用Chrome浏览器并确保选择WAV格式录音，或者尝试更换浏览器。`,
+        supportedFormats: azureSupportedFormats,
+        currentFormat: fileType,
+        suggestion: '建议使用Chrome或Edge浏览器，它们对WAV格式支持更好'
+      }, { status: 400 });
+    }
+    
     let audioBuffer: Buffer;
     try {
       // 在 serverless 环境中，直接使用原始音频 buffer
@@ -57,8 +71,33 @@ export async function POST(req: NextRequest) {
     }
 
     // 用音频 buffer 送给 Azure 进行语音识别，传入文件类型信息
-    const text = await speechToTextFromRecording(audioBuffer, 'zh-CN', fileType);
+    console.log('🎤 开始调用 Azure Speech 服务...');
+    console.log('📊 音频数据大小:', audioBuffer.length, 'bytes');
+    console.log('🎵 音频格式:', fileType);
+    
+    let text;
+    try {
+      text = await speechToTextFromRecording(audioBuffer, 'zh-CN', fileType);
+      console.log('✅ Azure Speech 识别成功:', text);
+    } catch (speechError) {
+      console.error('❌ Azure Speech 识别失败:', speechError);
+      console.error('❌ 错误类型:', typeof speechError);
+      console.error('❌ 错误详情:', speechError instanceof Error ? speechError.message : speechError);
+      
+      // 返回更详细的错误信息
+      const errorMessage = speechError instanceof Error ? speechError.message : String(speechError);
+      return NextResponse.json({ 
+        error: `语音识别服务错误: ${errorMessage}`,
+        audioInfo: {
+          size: audioBuffer.length,
+          type: fileType,
+          duration: Date.now() - startTime
+        }
+      }, { status: 500 });
+    }
+    
     if (!text || text.trim() === '') {
+      console.warn('⚠️ 识别结果为空');
       return NextResponse.json({ error: '录音识别结果为空，请重试' }, { status: 400 });
     }
 

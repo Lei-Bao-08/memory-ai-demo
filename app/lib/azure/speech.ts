@@ -5,8 +5,14 @@ const speechKey = process.env.AZURE_SPEECH_KEY || '';
 const speechRegion = process.env.AZURE_SPEECH_REGION || '';
 const defaultLang = 'zh-CN';
 
+console.log('🔧 Azure Speech 配置检查:');
+console.log('🔑 Speech Key 长度:', speechKey.length);
+console.log('🌍 Speech Region:', speechRegion);
+
 if (!speechKey || !speechRegion) {
-  console.warn('请在.env.local中配置AZURE_SPEECH_KEY和AZURE_SPEECH_REGION');
+  console.error('❌ 请在.env.local中配置AZURE_SPEECH_KEY和AZURE_SPEECH_REGION');
+} else {
+  console.log('✅ Azure Speech 配置已加载');
 }
 
 export async function speechToText(buffer: Buffer, language: string = defaultLang, originalFormat?: string): Promise<string> {
