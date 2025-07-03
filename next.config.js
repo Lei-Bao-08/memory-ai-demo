@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['microsoft-cognitiveservices-speech-sdk']
-  },
+  serverExternalPackages: ['microsoft-cognitiveservices-speech-sdk'],
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
