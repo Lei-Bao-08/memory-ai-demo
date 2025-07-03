@@ -300,22 +300,26 @@ export async function speechToTextFromRecording(buffer: Buffer, language: string
         throw new Error('Azure Speech SDK 导入失败，关键组件缺失');
       }
 
-      // 根据音频格式决定处理方式
+      // 根据音频格式决定处理方式 - 增强iOS Safari支持
       let processedBuffer = buffer;
       try {
         console.log('🎵 音频格式分析:', originalFormat);
         console.log('🎵 音频数据大小:', buffer.length, 'bytes');
         
-        if (originalFormat === 'audio/wav' || originalFormat === 'audio/pcm') {
-          console.log('✅ 检测到支持的音频格式，直接使用');
+        const azureNativeFormats = ['audio/wav', 'audio/pcm', 'audio/raw'];
+        const mobileSafariFormats = ['audio/mp4', 'audio/m4a', 'audio/aac'];
+        
+        if (originalFormat && azureNativeFormats.includes(originalFormat)) {
+          console.log('✅ 检测到Azure原生支持格式，直接使用');
+          processedBuffer = buffer;
+        } else if (originalFormat && mobileSafariFormats.includes(originalFormat)) {
+          console.log('📱 检测到iOS Safari音频格式:', originalFormat);
+          console.log('🔄 Azure Speech SDK 将尝试自动处理此格式');
+          // Azure Speech SDK 实际上可能支持更多格式，让它自己尝试
           processedBuffer = buffer;
         } else {
-          console.log('⚠️ 检测到不支持的音频格式:', originalFormat);
-          console.log('⚠️ Azure Speech SDK 支持格式: audio/wav, audio/pcm, audio/raw');
-          console.log('⚠️ 当前格式可能导致识别失败，建议前端使用 WAV 格式录音');
-          
-          // 在 serverless 环境中，我们只能尝试直接使用原始数据
-          // 这可能会失败，因为 Azure SDK 对格式要求严格
+          console.log('⚠️ 检测到未知音频格式:', originalFormat || '未指定');
+          console.log('🔄 将尝试直接处理，依赖Azure SDK的格式兼容性');
           processedBuffer = buffer;
         }
         

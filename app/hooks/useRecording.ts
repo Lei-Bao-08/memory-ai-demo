@@ -30,32 +30,60 @@ export const useRecording = () => {
       
       streamRef.current = stream;
       
-      // 检查和选择最佳音频格式 - 严格要求WAV格式
+      // 检查和选择最佳音频格式 - 兼容iOS Safari
       let mimeType = '';
       let audioType = 'audio/wav';
       
       console.log('🎵 检测浏览器支持的音频格式...');
       
-      // 严格优先WAV格式，因为Azure Speech SDK限制很严格
-      if (MediaRecorder.isTypeSupported('audio/wav')) {
-        mimeType = 'audio/wav';
-        audioType = 'audio/wav';
-        console.log('✅ 选择音频格式: WAV (最佳兼容性)');
-      } else {
-        // 如果不支持WAV，显示错误并停止录音
-        console.error('❌ 浏览器不支持WAV格式录音');
-        setState((prev: RecordingState) => ({ 
-          ...prev, 
-          isRecording: false, 
-          error: '当前浏览器不支持WAV格式录音，请使用Chrome或Edge浏览器' 
-        }));
+      // 检测是否为iOS Safari
+      const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent);
+      
+      if (isIOSSafari) {
+        console.log('📱 检测到iOS Safari浏览器');
+        // iOS Safari优先尝试支持的格式
+        const iosFormats = [
+          { mime: 'audio/wav', type: 'audio/wav', name: 'WAV' },
+          { mime: 'audio/mp4', type: 'audio/mp4', name: 'MP4' },
+          { mime: 'audio/m4a', type: 'audio/m4a', name: 'M4A' },
+          { mime: 'audio/aac', type: 'audio/aac', name: 'AAC' }
+        ];
         
-        // 停止媒体流
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-          streamRef.current = null;
+        for (const format of iosFormats) {
+          if (MediaRecorder.isTypeSupported(format.mime)) {
+            mimeType = format.mime;
+            audioType = format.type;
+            console.log(`✅ iOS Safari选择格式: ${format.name} (${format.mime})`);
+            break;
+          }
         }
-        return;
+        
+        if (!mimeType) {
+          console.log('🔄 iOS Safari使用默认格式');
+          mimeType = '';
+          audioType = 'audio/mp4'; // iOS默认格式
+        }
+      } else {
+        // 非iOS Safari浏览器，优先选择WAV格式
+        if (MediaRecorder.isTypeSupported('audio/wav')) {
+          mimeType = 'audio/wav';
+          audioType = 'audio/wav';
+          console.log('✅ 选择音频格式: WAV (最佳兼容性)');
+        } else {
+          console.error('❌ 浏览器不支持WAV格式录音');
+          setState((prev: RecordingState) => ({ 
+            ...prev, 
+            isRecording: false, 
+            error: '当前浏览器不支持WAV格式录音，请使用Chrome或Edge浏览器' 
+          }));
+          
+          // 停止媒体流
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+            streamRef.current = null;
+          }
+          return;
+        }
       }
       
       const mediaRecorder = mimeType 

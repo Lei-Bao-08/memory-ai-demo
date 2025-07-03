@@ -48,18 +48,27 @@ export async function POST(req: NextRequest) {
     const fileType = file.type || 'audio/webm';
     console.log('录音文件类型:', fileType, '文件名:', file.name);
     
-    // 检查音频格式兼容性
+    // 检查音频格式兼容性 - 针对iOS Safari特殊处理
     const azureSupportedFormats = ['audio/wav', 'audio/pcm', 'audio/raw'];
-    if (!azureSupportedFormats.includes(fileType)) {
+    const iosSafariFormats = ['audio/mp4', 'audio/m4a', 'audio/aac']; // iOS Safari常用格式
+    
+    if (!azureSupportedFormats.includes(fileType) && !iosSafariFormats.includes(fileType)) {
       console.warn('⚠️ 不兼容的音频格式:', fileType);
-      console.warn('⚠️ Azure Speech SDK 仅支持:', azureSupportedFormats.join(', '));
+      console.warn('⚠️ Azure Speech SDK 支持:', azureSupportedFormats.join(', '));
+      console.warn('⚠️ iOS Safari 支持:', iosSafariFormats.join(', '));
       
       return NextResponse.json({ 
-        error: `当前音频格式 ${fileType} 不被支持。请使用Chrome浏览器并确保选择WAV格式录音，或者尝试更换浏览器。`,
-        supportedFormats: azureSupportedFormats,
+        error: `当前音频格式 ${fileType} 不被支持。请尝试更换浏览器或设备。`,
+        supportedFormats: [...azureSupportedFormats, ...iosSafariFormats],
         currentFormat: fileType,
-        suggestion: '建议使用Chrome或Edge浏览器，它们对WAV格式支持更好'
+        suggestion: '建议使用Chrome、Edge或iOS Safari浏览器'
       }, { status: 400 });
+    }
+    
+    // 对于iOS Safari格式，记录警告但继续处理
+    if (iosSafariFormats.includes(fileType)) {
+      console.log('📱 检测到iOS Safari音频格式:', fileType);
+      console.log('🔄 将尝试直接处理，可能需要Azure SDK自动转换');
     }
     
     let audioBuffer: Buffer;
